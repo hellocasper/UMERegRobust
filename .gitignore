@@ -1,2 +1,9 @@
 /outputs
 .idea
+*.pickle
+/datasets_nksr
+/UMEReg.egg-info
+*.pyc
+utils/__pycache__
+datasets/__pycache__
+*.egg

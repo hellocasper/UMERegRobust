@@ -1,7 +1,7 @@
 dataset: kitti
 split: test
-data_path: /francosws/haitman/KITTI/data_odometry_velodyne/dataset/sequences
-cache_data_path: /new_users_data/users/haitman/UMERegRobust_Repo/Data/kitti_benchmarks
+data_path: /datasets/kitti/dataset/sequences
+cache_data_path: datasets_nksr/kitti_benchmarks
 batch_size: 1
 corr_batch_size: 64
 corr_ds: 0.6

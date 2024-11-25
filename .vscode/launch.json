@@ -1,0 +1,33 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "sem_preprocessing",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "sem_preprocessing.py",
+            // "cwd":"./datasets",
+            "console": "integratedTerminal",
+            "args": [
+                "--dataset_mode=kitti",
+                "--split=val",
+                // "--data_path=path_to_input_data",
+                "--output_path=./datasets_nksr/kitti",
+                ]
+        },
+        {
+            "name": "evaluate_kitti",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "evaluate.py",
+            // "cwd":"./datasets",
+            "console": "integratedTerminal",
+            "args": [
+                "--benchmark=rotkitti", //[kitti_test\lokitti\rotkitti]
+                ]
+        }
+    ]
+}

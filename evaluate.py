@@ -36,8 +36,8 @@ def pc_fcht(pc1_pts, pc2_pts, pc1_feat, pc2_feat, rtume_hypotises, gt_tform, cor
         )
         tform_hat = torch.cat([tform_hat, tt[None]], dim=0)
 
-    R_hat = tform_hat[:, :3, :3]
-    t_hat = tform_hat[:, :3, 3]
+    R_hat = tform_hat[:, :3, :3] # [1, 3, 3]
+    t_hat = tform_hat[:, :3, 3] # [1, 3]
 
     R_gt = gt_tform[:, :3, :3]
     t_gt = gt_tform[:, :3, 3]
@@ -48,15 +48,21 @@ def pc_fcht(pc1_pts, pc2_pts, pc1_feat, pc2_feat, rtume_hypotises, gt_tform, cor
 
 
 def my_ume_generation(pts, kpts, feat, args):
-    _, bq_idxs, bq_nn = ball_query(kpts, pts, K=args.ume_max_nn, radius=args.ume_r_nn, return_nn=True)
-    bq_idxs[bq_idxs == -1] = pts.shape[1]
+    ''' pts is orginal point cloud (bs, num_original_points, 3)
+        kpts is randomly sampled points as keypoints  (bs, num_sampled_points, 3)
+        feat is the feature of the original point cloud (bs, num_original_points, 32)
+        args.ume_max_nn: maximum number of neighbors to consider (750)
+        args.ume_r_nn: radius to consider for neighbors (5)
+    '''
+    _, bq_idxs, bq_nn = ball_query(kpts, pts, K=args.ume_max_nn, radius=args.ume_r_nn, return_nn=True) # bq_nn [bs, num_sampled_points, ume_max_nn, 3]
+    bq_idxs[bq_idxs == -1] = pts.shape[1] # bq_idxs [bs, num_sampled_points, ume_max_nn]
     feat_pad = torch.cat([feat, torch.zeros_like(feat[:, :1, :])], dim=1)
     nn_feat = torch.gather(feat_pad.unsqueeze(1).expand(-1, kpts.shape[1], -1, -1), 2,
-                           bq_idxs.unsqueeze(-1).expand(-1, -1, -1, 32))
-    F1 = nn_feat.transpose(-1, -2) @ bq_nn  # (bs, num_samples, dim_size, 3)
-    F0 = nn_feat.transpose(-1, -2).sum(dim=-1, keepdim=True)  # (bs, num_samples, dim_size, 1)
-    F = torch.cat([F0, F1], dim=-1)  # (bs, num_samples, dim_size, 4)
-    F = F / (F0.sum(dim=-2, keepdim=True) + 1e-6)
+                           bq_idxs.unsqueeze(-1).expand(-1, -1, -1, 32)) # nn_feat [bs, num_sampled_points, ume_max_nn, 32]
+    F1 = nn_feat.transpose(-1, -2) @ bq_nn  # [bs, num_sampled_points, dim_size, 3]
+    F0 = nn_feat.transpose(-1, -2).sum(dim=-1, keepdim=True)  # [bs, num_sampled_points, dim_size, 1] # sum of nn' features for each keypoint
+    F = torch.cat([F0, F1], dim=-1)  # [bs, num_sampled_points, dim_size, 4]
+    F = F / (F0.sum(dim=-2, keepdim=True) + 1e-6) # [bs, num_sampled_points, dim_size, 4] # e.g. [1, 10000, 32, 4]
     return F
 
 
@@ -175,36 +181,36 @@ if __name__ == '__main__':
     for itr, data in enumerate(tqdm(dloader)):
         # Fetch
         src_pts, src_seg, src_coords, src_feat, tgt_pts, tgt_seg, tgt_coords, tgt_feat, src_pts_tform, gt_tform, _ = data
-        src_stensor = ME.SparseTensor(src_feat, coordinates=src_coords, device=args.device)
-        tgt_stensor = ME.SparseTensor(tgt_feat, coordinates=tgt_coords, device=args.device)
-        src_seg = src_seg.to(args.device)[..., None]
-        tgt_seg = tgt_seg.to(args.device)[..., None]
-        src_pts = src_pts.to(args.device)
-        tgt_pts = tgt_pts.to(args.device)
-        gt_tform = gt_tform.to(args.device)
+        src_stensor = ME.SparseTensor(src_feat, coordinates=src_coords, device=args.device) # [num_points_src_batch, 1]
+        tgt_stensor = ME.SparseTensor(tgt_feat, coordinates=tgt_coords, device=args.device) # [num_points_tgt_batch, 1]
+        src_seg = src_seg.to(args.device)[..., None] # [1, num_points_src_batch, 1]  # maximum label index is 19 (20 classes)
+        tgt_seg = tgt_seg.to(args.device)[..., None] # [1, num_points_tgt_batch, 1]
+        src_pts = src_pts.to(args.device) # [bs, num_points_src_batch, 3]
+        tgt_pts = tgt_pts.to(args.device) # [bs, num_points_tgt_batch, 3]
+        gt_tform = gt_tform.to(args.device) # [bs, 4, 4]
         src_pts_tform = src_pts_tform.to(args.device)
-        R_gt = gt_tform[:, :3, :3]
-        t_gt = gt_tform[:, :3, 3]
+        R_gt = gt_tform[:, :3, :3] # [bs, 3, 3]
+        t_gt = gt_tform[:, :3, 3] # [bs, 3]
 
         # Forward
         with torch.no_grad():
-            src_feat = torch.stack(model(src_stensor).decomposed_features, dim=0)
-            tgt_feat = torch.stack(model(tgt_stensor).decomposed_features, dim=0)
+            src_feat = torch.stack(model(src_stensor).decomposed_features, dim=0) # [bs, num_points_src_batch, 32]
+            tgt_feat = torch.stack(model(tgt_stensor).decomposed_features, dim=0) # [bs, num_points_tgt_batch, 32]
 
         # Sample Keypoints + UME matrices
         if args.filter_by_ume_dist_cond:
-            num_init_sel = min(10000, min(len(src_pts[0]), len(tgt_pts[0])))
+            num_init_sel = min(10000, min(len(src_pts[0]), len(tgt_pts[0]))) # downsample to 10000 points if src and tgt contain more than 10000 points
         else:
             num_init_sel = min(min(src_pts.shape[1], tgt_pts.shape[1]), args.ume_n_samples)
         src_inds = np.random.choice(len(src_pts[0]), num_init_sel, replace=False)
         tgt_inds = np.random.choice(len(tgt_pts[0]), num_init_sel, replace=False)
-        src_pts_ds = src_pts[0, src_inds][None]
-        tgt_pts_ds = tgt_pts[0, tgt_inds][None]
-        src_feat_ds = src_feat[:, src_inds]
-        tgt_feat_ds = tgt_feat[:, tgt_inds]
+        src_pts_ds = src_pts[0, src_inds][None] # [1, 10000, 3] # ranging from [-50, 50]
+        tgt_pts_ds = tgt_pts[0, tgt_inds][None] # [1, 10000, 3] # ranging from [-50, 50]
+        src_feat_ds = src_feat[:, src_inds] # [1, 10000, 32]
+        tgt_feat_ds = tgt_feat[:, tgt_inds] # [1, 10000, 32]
 
-        ume_src = my_ume_generation(src_pts, src_pts_ds, src_feat, args)
-        ume_tgt = my_ume_generation(tgt_pts, tgt_pts_ds, tgt_feat, args)
+        ume_src = my_ume_generation(src_pts, src_pts_ds, src_feat, args) # [1, 10000, 32, 4]
+        ume_tgt = my_ume_generation(tgt_pts, tgt_pts_ds, tgt_feat, args) # [1, 10000, 32, 4]
         num_kpts = min(ume_src.shape[1], ume_tgt.shape[1])
         ume_src = ume_src[:, :num_kpts]
         src_keypoint_pts = src_pts_ds[:, :num_kpts]
@@ -212,7 +218,7 @@ if __name__ == '__main__':
         tgt_keypoint_pts = tgt_pts_ds[:, :num_kpts]
 
         # Find Matches
-        D = ume_cdist(ume_src, ume_tgt)
+        D = ume_cdist(ume_src, ume_tgt) # [bs, num_kpts, num_kpts] # e.g. [1, 10000, 10000]
         if args.hungarian_matching_flag:
             m = np.zeros((args.batch_size, min(D.shape[1], D.shape[2]), 2))
             for b_idx in range(D.shape[0]):
@@ -221,35 +227,35 @@ if __name__ == '__main__':
                 m[b_idx, :, 1] = tgt_m_idxs
             m = torch.from_numpy(m).long().to(args.device)
         else:
-            m = D.min(dim=-1)[1]
-            m = torch.cat([torch.arange(D.shape[1])[None, :, None].cuda(), m[..., None]], dim=-1)
+            m = D.min(dim=-1)[1] # [bs, num_kpts] # e.g. [1, 10000]
+            m = torch.cat([torch.arange(D.shape[1])[None, :, None].cuda(), m[..., None]], dim=-1) # [bs, num_kpts, 2] # e.g. [1, 10000, 2]
 
         num_matches = m.shape[1]
-        tgt_matches_keypoint_pts = torch.gather(tgt_keypoint_pts, 1, m[..., 1].unsqueeze(-1).expand(-1, -1, 3))
-        src_matches_keypoint_pts = torch.gather(src_keypoint_pts, 1, m[..., 0].unsqueeze(-1).expand(-1, -1, 3))
-        ume_tgt = torch.gather(ume_tgt, 1, m[..., 1][..., None, None].expand(-1, -1, 32, 4))
-        ume_src = torch.gather(ume_src, 1, m[..., 0][..., None, None].expand(-1, -1, 32, 4))
+        tgt_matches_keypoint_pts = torch.gather(tgt_keypoint_pts, 1, m[..., 1].unsqueeze(-1).expand(-1, -1, 3)) # [bs, num_matches, 3]
+        src_matches_keypoint_pts = torch.gather(src_keypoint_pts, 1, m[..., 0].unsqueeze(-1).expand(-1, -1, 3)) # [bs, num_matches, 3]
+        ume_tgt = torch.gather(ume_tgt, 1, m[..., 1][..., None, None].expand(-1, -1, 32, 4)) # [bs, num_matches, 32, 4]
+        ume_src = torch.gather(ume_src, 1, m[..., 0][..., None, None].expand(-1, -1, 32, 4)) # [bs, num_matches, 32, 4]
 
         if args.filter_by_ume_dist_cond:
-            ume_d = D[0, m[0][:, 0], m[0][:, 1]]
+            ume_d = D[0, m[0][:, 0], m[0][:, 1]] # [num_matches]
             a = (torch.exp((1 - ume_d) / args.tau))
             prob = a / a.sum()
-            num_matches = min(src_matches_keypoint_pts.shape[1], args.ume_n_samples)
+            num_matches = min(src_matches_keypoint_pts.shape[1], args.ume_n_samples) # args.ume_n_samples=2500
             cond = np.random.choice(src_matches_keypoint_pts.shape[1], num_matches, replace=False,
                                     p=prob.cpu().numpy())
-            src_matches_keypoint_pts = src_matches_keypoint_pts[:, cond]
-            tgt_matches_keypoint_pts = tgt_matches_keypoint_pts[:, cond]
+            src_matches_keypoint_pts = src_matches_keypoint_pts[:, cond] # [bs, ume_n_samples=2500, 3]
+            tgt_matches_keypoint_pts = tgt_matches_keypoint_pts[:, cond] # [bs, ume_n_samples=2500, 3]
 
-            ume_src = ume_src[:, cond]
-            ume_tgt = ume_tgt[:, cond]
-            num_matches = ume_src.shape[1]
+            ume_src = ume_src[:, cond] # [bs, ume_n_samples=2500, 32, 4]
+            ume_tgt = ume_tgt[:, cond] # [bs, ume_n_samples=2500, 32, 4]
+            num_matches = ume_src.shape[1] # ume_n_samples=2500
 
         # Estimate Hypothesis
-        G_kp = ume_src.unsqueeze(2)
-        H_kp = ume_tgt.unsqueeze(1)
+        G_kp = ume_src.unsqueeze(2) # [bs, ume_n_samples, 1, 32, 4]
+        H_kp = ume_tgt.unsqueeze(1) # [bs, 1, ume_n_samples, 32, 4]
         G, H = G_kp, H_kp
-        G = G.reshape(-1, *G.shape[3:])
-        H = H.reshape(-1, *H.shape[3:])
+        G = G.reshape(-1, *G.shape[3:]) # [bs*ume_n_samples, 32, 4]
+        H = H.reshape(-1, *H.shape[3:]) # [bs*ume_n_samples, 32, 4]
         T, _ = batch_estimate_transform_ume_old(G, H)
         rtume_tform = T.view(args.batch_size, num_matches, *T.shape[1:])
 
@@ -265,9 +271,9 @@ if __name__ == '__main__':
 
         src_pts_raw = src_pts_raw[src_inds]
         tgt_pts_raw = tgt_pts_raw[tgt_inds]
-        src_pts_raw = src_pts_raw[None].cuda()
-        tgt_pts_raw = tgt_pts_raw[None].cuda()
-        gt_tform = gt_tform[None].cuda()
+        src_pts_raw = src_pts_raw[None].cuda() # [1, num_points_src_quant, 3]
+        tgt_pts_raw = tgt_pts_raw[None].cuda() # [1, num_points_tgt_quant, 3]
+        gt_tform = gt_tform[None].cuda() # [1, 4, 4]
 
         ind = knn_points(src_pts_raw, src_pts, K=1)
         src_feat_corr = knn_gather(src_feat, ind[1])[:, :, 0, :]
@@ -277,12 +283,12 @@ if __name__ == '__main__':
         # DownSample
         num_pts = min(args.pc_corr_max_size, src_pts_raw.shape[1])
         rand_idxs = np.random.choice(src_pts_raw.shape[1], num_pts, replace=False)
-        src_pts_raw = src_pts_raw[:, rand_idxs]
-        src_feat_corr = src_feat_corr[:, rand_idxs]
+        src_pts_raw = src_pts_raw[:, rand_idxs] # [1, 10000, 3]
+        src_feat_corr = src_feat_corr[:, rand_idxs] # [1, 10000, 32]
         num_pts = min(args.pc_corr_max_size, tgt_pts_raw.shape[1])
         rand_idxs = np.random.choice(tgt_pts_raw.shape[1], num_pts, replace=False)
-        tgt_pts_raw = tgt_pts_raw[:, rand_idxs]
-        tgt_feat_corr = tgt_feat_corr[:, rand_idxs]
+        tgt_pts_raw = tgt_pts_raw[:, rand_idxs] # [1, 10000, 3]
+        tgt_feat_corr = tgt_feat_corr[:, rand_idxs] # [1, 10000, 32]
 
         with torch.no_grad():
             _, _, R_hat_corr, t_hat_corr = pc_fcht(

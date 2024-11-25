@@ -12,7 +12,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_path', type=str,
-                        default="/francosws/haitman/KITTI/data_odometry_velodyne/dataset/sequences")
+                        default="/datasets/kitti/dataset/sequences")
     parser.add_argument('--output_path', type=str, default="")
     parser.add_argument('--split', type=str, default="train", choices=['train', 'test', 'val'])
     parser.add_argument('--nksr', type=eval, default=True)

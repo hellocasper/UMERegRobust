@@ -63,8 +63,13 @@ and notably outperform SOTA methods on the RotKITTI benchmark
  conda create umereg_conda_env python=3.8
  
  # Install CUDA Toolkit 11.7
- conda install nvidia/label/cuda-11.7.0::cuda-toolkit
- conda install conda-forge::cudatoolkit-dev
+#  conda install nvidia/label/cuda-11.7.0::cuda-toolkit
+#  conda install conda-forge::cudatoolkit-dev
+
+ wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.1-1_all.deb
+ sudo dpkg -i cuda-keyring_1.1-1_all.deb
+ sudo apt-get update
+ sudo apt-get -y install cuda-toolkit-11-7
  
  # Git for Conda
 conda install git
@@ -73,7 +78,9 @@ conda install git
 pip install torch==1.13.0+cu117 torchvision==0.14.0+cu117 torchaudio==0.13.0 --extra-index-url https://download.pytorch.org/whl/cu117
 
 # Install MinkowskiEngine 
- pip install -U git+https://github.com/NVIDIA/MinkowskiEngine -v --no-deps --config-settings="--blas_include_dirs=${CONDA_PREFIX}/include" --config-settings="--blas=openblas"
+#  pip install -U git+https://github.com/NVIDIA/MinkowskiEngine -v --no-deps --config-settings="--blas_include_dirs=${CONDA_PREFIX}/include" --config-settings="--blas=openblas"
+sudo apt-get install libopenblas-dev
+git clone --recursive "https://github.com/NVIDIA/MinkowskiEngine" && cd MinkowskiEngine; python setup.py install --force_cuda --blas=openblas
  
  # Install Pytorch3D + torch_scatter
  pip install "git+https://github.com/facebookresearch/pytorch3d.git"

@@ -445,15 +445,15 @@ class SemanticKITTIDataset(Dataset):
                                  f"{frame0_id:06d}_{frame1_id:06d}.pickle")
 
         data_dict = load_pickle(file_path)
-        src_pts = data_dict['src_pts']
-        src_seg = data_dict['src_seg']
-        src_coords = data_dict['src_coords']
-        tgt_pts = data_dict['tgt_pts']
+        src_pts = data_dict['src_pts'] # torch.Size([num_points_src, 3]) # max:50 min:-50 mean:3.2 std:18.1
+        src_seg = data_dict['src_seg'] # torch.Size([num_points_src])
+        src_coords = data_dict['src_coords'] # torch.Size([num_points_src, 3]) # max:170 min:-170
+        tgt_pts = data_dict['tgt_pts'] # torch.Size([num_points_tgt, 3]) # max:50 min:-50
         tgt_seg = data_dict['tgt_seg']
         tgt_coords = data_dict['tgt_coords']
-        src_pts_tform = data_dict['src_pts_tform']
-        gt_tform = data_dict['gt_tform']
-        matches = data_dict['matches']
+        src_pts_tform = data_dict['src_pts_tform'] # torch.Size([num_points_src, 3])
+        gt_tform = data_dict['gt_tform'] # torch.Size([4, 4])
+        matches = data_dict['matches'] # torch.Size([num_matches, 2]) --> idx_src, idx_tgt
 
         return src_pts, src_seg, src_coords, tgt_pts, tgt_seg, tgt_coords, src_pts_tform, gt_tform, matches
 
@@ -568,8 +568,8 @@ def batch_collate_fn_dset(data, num_matches, max_pc_size=100000):
     src_num_pts = min(min([len(d[0]) for d in data]), max_pc_size)
     tgt_num_pts = min(min([len(d[3]) for d in data]), max_pc_size)
 
-    for b_idx in range(bs):
-        d = data[b_idx]
+    for b_idx in range(bs): # samling to a certain number of points
+        d = data[b_idx] # data tuple for a pair of point clouds
         # Src
         src_rand_idx = np.random.choice(len(d[0]), src_num_pts, replace=False)
         src_pts.append(d[0][src_rand_idx])
@@ -586,10 +586,10 @@ def batch_collate_fn_dset(data, num_matches, max_pc_size=100000):
         tgt_feat.append(torch.ones_like(d[3][tgt_rand_idx, :1]).float())
 
         # Matches (Keep matches after point cloud dilution)
-        m = d[8]
-        _, m1, idxs1 = np.intersect1d(src_rand_idx, m[:, 0], return_indices=True)
-        _, m2, idxs2 = np.intersect1d(tgt_rand_idx, m[idxs1, 1], return_indices=True)
-        mm = np.concatenate([m1[idxs2, None], m2[:, None]], axis=1)
+        m = d[8] # [num_matches, 2]
+        _, m1, idxs1 = np.intersect1d(src_rand_idx, m[:, 0], return_indices=True) # [num_matches_after_filtering_discarded_src,]
+        _, m2, idxs2 = np.intersect1d(tgt_rand_idx, m[idxs1, 1], return_indices=True) # [num_matches_after_filtering_discarded_src_tgt,]
+        mm = np.concatenate([m1[idxs2, None], m2[:, None]], axis=1) # [num_matches_after_filtering_discarded_src_tgt,2]
         matches.append(mm)
 
     # Batch - Src

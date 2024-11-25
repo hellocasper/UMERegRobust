@@ -554,62 +554,62 @@ class ResUNetSmall(ME.MinkowskiNetwork):
         dimension=D)
 
   def forward(self, x):
-    out_s1 = self.conv1(x)
-    out_s1 = self.norm1(out_s1)
-    out_s1 = self.block1(out_s1)
-    out = MEF.relu(out_s1)
+    out_s1 = self.conv1(x) # x: [num_points, 1]   out_s1: [num_points, 32]
+    out_s1 = self.norm1(out_s1) # out_s1: [num_points, 32]
+    out_s1 = self.block1(out_s1) # out_s1: [num_points, 32]
+    out = MEF.relu(out_s1) # e.g. [37815, 32]
 
-    out_s2 = self.conv2(out)
-    out_s2 = self.norm2(out_s2)
-    out_s2 = self.block2(out_s2)
-    out = MEF.relu(out_s2)
+    out_s2 = self.conv2(out) # out: [num_points, 32]  out_s2: [num_hyper_points_1, 64]
+    out_s2 = self.norm2(out_s2) # out_s2: [num_hyper_points_1, 64]
+    out_s2 = self.block2(out_s2) # out_s2: [num_hyper_points_1, 64] 
+    out = MEF.relu(out_s2) # e.g. [12734, 64]
 
-    out_s3 = self.conv3(out)
-    out_s3 = self.norm3(out_s3)
-    out_s3 = self.block3(out_s3)
-    out = MEF.relu(out_s3)
+    out_s3 = self.conv3(out) # out: [num_hyper_points_1, 64]  out_s3: [num_hyper_points_2, 64]
+    out_s3 = self.norm3(out_s3) # out_s3: [num_hyper_points_2, 64]
+    out_s3 = self.block3(out_s3) # out_s3: [num_hyper_points_2, 64]
+    out = MEF.relu(out_s3) # [3727, 64]
 
-    out_s4 = self.conv4(out)
-    out_s4 = self.norm4(out_s4)
-    out_s4 = self.block4(out_s4)
-    out = MEF.relu(out_s4)
+    out_s4 = self.conv4(out) # out: [num_hyper_points_2, 64]  out_s4: [num_hyper_points_3, 128]
+    out_s4 = self.norm4(out_s4) # out_s4: [num_hyper_points_3, 128]
+    out_s4 = self.block4(out_s4) # out_s4: [num_hyper_points_3, 128]
+    out = MEF.relu(out_s4) # e.g. [1059, 128]
 
-    out_s5 = self.conv5(out)
-    out_s5 = self.norm5(out_s5)
-    out_s5 = self.block5(out_s5)
-    out = MEF.relu(out_s5)
+    out_s5 = self.conv5(out) # out: [num_hyper_points_3, 128]  out_s5: [num_hyper_points_4, 256]
+    out_s5 = self.norm5(out_s5) # out_s5: [num_hyper_points_4, 256]
+    out_s5 = self.block5(out_s5) # out_s5: [num_hyper_points_4, 256]
+    out = MEF.relu(out_s5) # e.g. [192, 256]
 
-    out = self.conv4_tr(out)
-    out = self.norm4_tr(out)
-    out = self.block4_tr(out)
-    out_s4_tr = MEF.relu(out)
-    out = ME.cat(out_s4_tr, out_s4)
+    out = self.conv4_tr(out) # out: [num_hyper_points_4, 256]  out: [num_hyper_points_3, 128]
+    out = self.norm4_tr(out) # out: [num_hyper_points_3, 128]
+    out = self.block4_tr(out) # out: [num_hyper_points_3, 128]
+    out_s4_tr = MEF.relu(out) # [1059, 128]
+    out = ME.cat(out_s4_tr, out_s4) # out: [num_hyper_points_3, 128 + 128]
 
-    out = self.conv3_tr(out)
-    out = self.norm3_tr(out)
-    out = self.block3_tr(out)
-    out_s3_tr = MEF.relu(out)
+    out = self.conv3_tr(out) # out: [num_hyper_points_3, 256]  out: [num_hyper_points_2, 128]
+    out = self.norm3_tr(out) # out: [num_hyper_points_2, 128]
+    out = self.block3_tr(out) # out: [num_hyper_points_2, 128]
+    out_s3_tr = MEF.relu(out) # e.g. [3727, 128]
 
-    out = ME.cat(out_s3_tr, out_s3)
+    out = ME.cat(out_s3_tr, out_s3) # out: [num_hyper_points_2, 128 + 64]
 
-    out = self.conv2_tr(out)
-    out = self.norm2_tr(out)
-    out = self.block2_tr(out)
-    out_s2_tr = MEF.relu(out)
+    out = self.conv2_tr(out) # out: [num_hyper_points_2, 128]  out: [num_hyper_points_1, 64]
+    out = self.norm2_tr(out) # out: [num_hyper_points_1, 64]
+    out = self.block2_tr(out) # out: [num_hyper_points_1, 64]
+    out_s2_tr = MEF.relu(out) # e.g. [12734, 64]
 
-    out = ME.cat(out_s2_tr, out_s2)
+    out = ME.cat(out_s2_tr, out_s2) # out: [num_hyper_points_1, 64 + 64]
 
-    out = self.conv1_tr(out)
-    out = self.norm1_tr(out)
-    out = self.block1_tr(out)
+    out = self.conv1_tr(out) # out: [num_hyper_points_1, 64]  out: [num_points, 64]
+    out = self.norm1_tr(out) # out: [num_points, 64]
+    out = self.block1_tr(out) # out: [num_points, 64]
     out_s1_tr = MEF.relu(out)
 
-    out = ME.cat(out_s1_tr, out_s1)
-    out = self.mlp1(out)
+    out = ME.cat(out_s1_tr, out_s1) # out: [num_points, 64 + 32]
+    out = self.mlp1(out) # out: [num_points, 64]
     out = MEF.relu(out)
-    out = self.final(out)
+    out = self.final(out) # out: [num_points, 32]
 
-    if self.normalize_feature:
+    if self.normalize_feature: # True
       return ME.SparseTensor(
           out.F / torch.norm(out.F, p=2, dim=1, keepdim=True),
           coordinate_map_key=out.coordinate_map_key,
