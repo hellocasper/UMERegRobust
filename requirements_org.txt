@@ -1,3 +1,7 @@
+torch==1.13.0+cu117
+MinkowskiEngine==0.5.4
+pytorch3d==0.7.7
+nksr==1.0.3+pt113cu117
 open3d
 tensorboard
 numpy

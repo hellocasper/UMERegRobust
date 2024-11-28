@@ -106,7 +106,6 @@ def eval_one_epoch(epoch, data_loader, model, loss_func, summary_writer):
     num_iters = len(data_loader)
 
     for itr, data in enumerate(tqdm(data_loader)):
-
         src_pts, src_seg, src_coords, src_feat, tgt_pts, tgt_seg, tgt_coords, tgt_feat, src_pts_tform, gt_tform, matches = data
         if matches.shape[1] == 0:  # Case no matches
             print(f'No Matches in this batch - Skip')

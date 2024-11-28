@@ -587,6 +587,8 @@ def batch_collate_fn_dset(data, num_matches, max_pc_size=100000):
 
         # Matches (Keep matches after point cloud dilution)
         m = d[8] # [num_matches, 2]
+        if m.ndim == 1:
+            print('there is no matche between this pair of point clouds')
         _, m1, idxs1 = np.intersect1d(src_rand_idx, m[:, 0], return_indices=True) # [num_matches_after_filtering_discarded_src,]
         _, m2, idxs2 = np.intersect1d(tgt_rand_idx, m[idxs1, 1], return_indices=True) # [num_matches_after_filtering_discarded_src_tgt,]
         mm = np.concatenate([m1[idxs2, None], m2[:, None]], axis=1) # [num_matches_after_filtering_discarded_src_tgt,2]

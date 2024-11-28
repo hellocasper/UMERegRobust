@@ -14,7 +14,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_path', type=str,
                         default="/datasets/kitti/dataset/sequences")
     parser.add_argument('--output_path', type=str, default="")
-    parser.add_argument('--split', type=str, default="train", choices=['train', 'test', 'val'])
+    parser.add_argument('--split', type=str, default="train", choices=['train', 'test', 'val', 'lokitti','rotkitti'])
     parser.add_argument('--nksr', type=eval, default=True)
     parser.add_argument('--dataset_mode', type=str, default="kitti", choices=['kitti', 'nuscenes'])
     parser.add_argument('--convert_points_to_grid', type=eval, default=True)
@@ -69,6 +69,10 @@ if __name__ == '__main__':
         os.makedirs(save_dir_path, exist_ok=True)
 
         src_grid_pts, src_sem, src_coords, tgt_grid_pts, tgt_sem, tgt_coords, src_pts_tform, gt_tform, matches = dset[itr]
+        
+        if matches.ndim == 1:
+            print('there is a pair without match {}'.format(save_name))
+            continue
 
         save_dict = {"src_pts": src_grid_pts,
                      "src_seg": src_sem,

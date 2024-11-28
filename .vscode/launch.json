@@ -13,7 +13,7 @@
             "console": "integratedTerminal",
             "args": [
                 "--dataset_mode=kitti",
-                "--split=val",
+                "--split=val", //[test\lokitti\rotkitti]
                 // "--data_path=path_to_input_data",
                 "--output_path=./datasets_nksr/kitti",
                 ]
@@ -27,6 +27,17 @@
             "console": "integratedTerminal",
             "args": [
                 "--benchmark=rotkitti", //[kitti_test\lokitti\rotkitti]
+                ]
+        },
+        {
+            "name": "train_coloring",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "train_coloring.py",
+            // "cwd":"./datasets",
+            "console": "integratedTerminal",
+            "args": [
+                "--config=kitti", 
                 ]
         }
     ]

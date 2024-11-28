@@ -66,10 +66,15 @@ and notably outperform SOTA methods on the RotKITTI benchmark
 #  conda install nvidia/label/cuda-11.7.0::cuda-toolkit
 #  conda install conda-forge::cudatoolkit-dev
 
- wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.1-1_all.deb
- sudo dpkg -i cuda-keyring_1.1-1_all.deb
- sudo apt-get update
- sudo apt-get -y install cuda-toolkit-11-7
+#  wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.1-1_all.deb
+#  sudo dpkg -i cuda-keyring_1.1-1_all.deb
+#  sudo apt-get update
+#  sudo apt-get -y install cuda-toolkit-11-7
+ wget https://developer.download.nvidia.com/compute/cuda/11.7.1/local_installers/cuda_11.7.1_515.65.01_linux.run
+ sudo sh cuda_11.7.1_515.65.01_linux.run
+ export PATH="/usr/local/cuda/bin:$PATH"
+ export LD_LIBRARY_PATH="/usr/local/cuda/lib64:$LD_LIBRARY_PATH"
+ export CUDA_HOME=/usr/local/cuda
  
  # Git for Conda
 conda install git
@@ -92,6 +97,7 @@ git clone --recursive "https://github.com/NVIDIA/MinkowskiEngine" && cd Minkowsk
 # Other Relevant Packages
  pip install open3d
  pip install tensorboard
+ pip install tqdm pycg
  ```
 ### Clone UMERegRobust Repository:
  ```bash

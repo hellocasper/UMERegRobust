@@ -18,20 +18,20 @@ class MyInfoNCELossNoSeg(nn.Module):
 
     def forward(self, velo_feat, velo_pts, ref_feat, matches):
         # Get Anchor points from Velo and Pos from Ref
-        bs, _, feat_dim = velo_feat.shape
+        bs, _, feat_dim = velo_feat.shape # bs, num_pts, d=32
 
-        anchor_feat = torch.gather(velo_feat, 1, matches[..., :1].expand(-1, -1, feat_dim))  # (bs, N, d)
+        anchor_feat = torch.gather(velo_feat, 1, matches[..., :1].expand(-1, -1, feat_dim))  # (bs, N=num_mathces=512, d)
         anchor_pts = torch.gather(velo_pts, 1, matches[..., :1].expand(-1, -1, 3))  # (bs, N, 3)
         pos_feat = torch.gather(ref_feat, 1, matches[..., 1:2].expand(-1, -1, feat_dim))  # (bs, N, d)
 
-        d_pos = self.cos_sim(anchor_feat, pos_feat).view(bs, -1, 1)  # (bs, N, 1)
+        d_pos = self.cos_sim(anchor_feat, pos_feat).view(bs, -1, 1)  # (bs, N=512, 1)
 
-        D = anchor_feat @ pos_feat.transpose(1, 2)
+        D = anchor_feat @ pos_feat.transpose(1, 2) # (bs, num_matches, num_mathces)
         D_cat = torch.cat((d_pos, D), dim=2)  # (bs, n_samples, n_samples+1) - [pos,negs]
 
         # Negatives
         D_euc = torch.cdist(anchor_pts, anchor_pts)
-        far_from_anc_mask = D_euc > self.neg_euclid_dist  # (bs, n_samples, n_samples) - diagonal is always 0
+        far_from_anc_mask = D_euc > self.neg_euclid_dist  # (bs, n_samples, n_samples) - diagonal is always 0 # neg_euclid_dist=5
         neg_mask = torch.cat([torch.ones_like(far_from_anc_mask[:, :, :1]), far_from_anc_mask],
                              dim=-1)  # (bs, n_samples, n_samples +1) instead of diagonal
 
@@ -78,11 +78,11 @@ class UMEContrastiveLoss(nn.Module):
             flat_labels=self.flat_labels,
             normalized_ume=True,
             nn_intersection_r=self.nn_intersection_r)
-
+        # velo_ume: [bs,256,32,4] ; ref_ume: [bs,256,32,4] ; velo_keypoint_pts: [4,256,3] ; ref_keypoint_pts: [4,256,3] ; matched_nn_intersection_ratio: [4,256]; with_kpts_batch_cond: [4]
         # Valid UME Matrix check
         with torch.no_grad():
-            velo_valid_ume_mask = ((torch.linalg.svdvals(velo_ume) > self.svd_thr).sum(dim=-1) == 4)
-            ref_valid_ume_mask = ((torch.linalg.svdvals(ref_ume) > self.svd_thr).sum(dim=-1) == 4)
+            velo_valid_ume_mask = ((torch.linalg.svdvals(velo_ume) > self.svd_thr).sum(dim=-1) == 4) # [4,256]
+            ref_valid_ume_mask = ((torch.linalg.svdvals(ref_ume) > self.svd_thr).sum(dim=-1) == 4) # [4,256]
             velo_valid_ume_mask = velo_valid_ume_mask & ref_valid_ume_mask
 
             num_invalid = (~velo_valid_ume_mask).sum().item()
@@ -95,7 +95,7 @@ class UMEContrastiveLoss(nn.Module):
         velo_ume = velo_ume[:, ~invalid_keypoints_velo]
         ref_ume = ref_ume[:, ~invalid_keypoints_velo]
         matched_nn_intersection_ratio = matched_nn_intersection_ratio[:, ~invalid_keypoints_velo]
-        D_ume = ume_cdist(velo_ume, ref_ume)  # (bs, n_samples, n_samples)
+        D_ume = ume_cdist(velo_ume, ref_ume)  # (bs, n_samples, n_samples) # [4,250,250]
         ume_rank = velo_ume.shape[-1]
 
         sim_ume = (np.sqrt(ume_rank) - 2 * D_ume) / (np.sqrt(ume_rank))

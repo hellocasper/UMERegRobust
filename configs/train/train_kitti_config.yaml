@@ -1,10 +1,10 @@
 dataset: kitti
-batch_size: 8
-cache_data_path: "" # change path to SEM preprocessed data
+batch_size: 4
+cache_data_path: datasets_nksr/kitti
 calc_inlear_ratio_eval: true
-data_path: /francosws/haitman/KITTI/data_odometry_velodyne/dataset/sequences
+data_path: /datasets/kitti/dataset/sequences
 device: cuda:0
-eval_batch_size: -1
+eval_batch_size: 3
 eval_inlear_thr: 0.6
 eval_num_kpts: 1000
 lr: 0.0001
